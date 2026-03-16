@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface PhoneFrameProps {
   children: ReactNode;
@@ -6,6 +7,24 @@ interface PhoneFrameProps {
 }
 
 export default function PhoneFrame({ children, screenBackground = 'bg-gradient-to-br from-slate-700 via-slate-800 to-blue-900' }: PhoneFrameProps) {
+  const isNative = Capacitor.isNativePlatform();
+
+  if (isNative) {
+    return (
+      <div
+        className={`w-screen h-screen overflow-hidden relative ${screenBackground}`}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
+        }}
+      >
+        <div className="relative w-full h-full">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-8 bg-white">
       {/* iPhone 15 Frame - 统一尺寸 */}
@@ -34,9 +53,6 @@ export default function PhoneFrame({ children, screenBackground = 'bg-gradient-t
           <div className="absolute inset-[8px] bg-black rounded-[3rem] shadow-inner">
             {/* Inner bezel shadow for depth */}
             <div className="absolute inset-0 rounded-[3rem] shadow-[inset_0_2px_10px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(0,0,0,0.5)]"></div>
-            
-            {/* Dynamic Island - Enhanced */}
-            <div className="absolute top-[18px] left-1/2 -translate-x-1/2 w-[110px] h-[35px] bg-black rounded-full z-10 shadow-[0_4px_12px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(0,0,0,0.5)] border border-gray-900/50"></div>
             
             {/* Phone Screen */}
             <div className={`w-full h-full rounded-[3rem] overflow-hidden relative ${screenBackground}`}>
