@@ -37,6 +37,7 @@ class GratitudeSchema(BaseModel):
 # --- NEW: Chat Model (Added) ---
 class ChatSchema(BaseModel):
     message: str
+    mode: str = "general"
 
 # --- Root Endpoint ---
 @app.get("/")
@@ -157,15 +158,23 @@ def get_gratitude_list(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# --- NEW: AI ENDPOINT (Added) ---
-@app.post("/ai/chat")
-def chat_with_ai(chat: ChatSchema):
+# --- AI ENDPOINTS ---
+def _chat_response(chat: ChatSchema):
     try:
-        # Pass the user's message to Ayham's logic
-        ai_response = get_mood_advice(chat.message)
+        ai_response = get_mood_advice(chat.message, chat.mode)
         return {"status": "success", "reply": ai_response}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/ai/chat")
+def legacy_chat_with_ai(chat: ChatSchema):
+    return _chat_response(chat)
+
+
+@app.post("/chat")
+def chat_with_ai(chat: ChatSchema):
+    return _chat_response(chat)
 
 # --- Admin Export (For Salman/Analytics) ---
 @app.get("/admin/export_data")

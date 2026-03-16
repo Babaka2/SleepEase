@@ -45,3 +45,4 @@ urllib3==2.6.3
 uvicorn==0.40.0
 textblob
 nltk
+openai>=1.30.0
