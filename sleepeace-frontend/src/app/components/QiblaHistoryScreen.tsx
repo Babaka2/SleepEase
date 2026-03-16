@@ -26,6 +26,7 @@ import {
   BedDouble,
 } from 'lucide-react';
 import PhoneFrame from './PhoneFrame';
+import { Language, translations } from '../translations';
 import { getMoodHistory, type MoodEntry } from '../../services/mood';
 import { fetchMyScores, type MyScores } from '../../services/analytics';
 
@@ -48,6 +49,7 @@ type Mode = 'general' | 'islamic' | null;
 
 interface QiblaHistoryScreenProps {
   navigate: (screen: Screen, mode?: Mode) => void;
+  currentLanguage: Language;
 }
 
 type MoodKey = 'peaceful' | 'grateful' | 'worried' | 'tired' | 'seeking';
@@ -146,7 +148,8 @@ function computeTrendPercent(entries: MoodEntry[]): number {
   return Math.round(((avgThis - avgLast) / avgLast) * 100);
 }
 
-export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps) {
+export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaHistoryScreenProps) {
+  const t = translations[currentLanguage];
   const [selectedTab, setSelectedTab] = useState<'overview' | 'insights' | 'history'>('overview');
   const [entries, setEntries] = useState<MoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,10 +287,7 @@ export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-900" />
       
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-yellow-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Content */}
       <div className="relative w-full h-full flex flex-col">
@@ -316,14 +316,14 @@ export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps
                   opacity="0.9"
                 />
               </svg>
-              Qibla & Journey
+              {t.settings.qiblaDirection}
             </h1>
-            <p className="text-emerald-100/70 text-xs">Your spiritual path</p>
+            <p className="text-emerald-100/70 text-xs">{t.islamicHome.contentDesc}</p>
           </div>
 
           <button className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-emerald-100/70" />
-            <span className="text-emerald-100/70 text-xs">Week</span>
+            <span className="text-emerald-100/70 text-xs">{t.explore.week}</span>
             <ChevronRight className="w-3 h-3 text-emerald-100/50" />
           </button>
         </div>
@@ -332,17 +332,17 @@ export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps
         <div className="px-6 mb-4">
           <div className="rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 p-1 flex gap-1">
             <TabButton 
-              label="Overview" 
+              label={t.explore.overview} 
               active={selectedTab === 'overview'} 
               onClick={() => setSelectedTab('overview')}
             />
             <TabButton 
-              label="Insights" 
+              label={t.explore.insights} 
               active={selectedTab === 'insights'} 
               onClick={() => setSelectedTab('insights')}
             />
             <TabButton 
-              label="History" 
+              label={t.explore.history} 
               active={selectedTab === 'history'} 
               onClick={() => setSelectedTab('history')}
             />
@@ -353,7 +353,7 @@ export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps
         <div className="flex-1 overflow-y-auto px-6 pb-28">
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-emerald-100/50 text-sm">Loading...</div>
+              <div className="text-emerald-100/50 text-sm">{currentLanguage === 'zh' ? '加载中...' : currentLanguage === 'ar' ? 'جارٍ التحميل...' : currentLanguage === 'ms' ? 'Memuatkan...' : 'Loading...'}</div>
             </div>
           ) : (
             <>
@@ -381,19 +381,19 @@ export default function QiblaHistoryScreen({ navigate }: QiblaHistoryScreenProps
           <div className="w-full rounded-2xl bg-white/12 backdrop-blur-md border border-white/15 px-4 py-3 flex justify-between items-center">
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('islamic-home')}>
               <Home className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">Home</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.home}</span>
             </button>
             <button className="flex flex-col items-center gap-1">
               <Compass className="w-5 h-5 text-white" />
-              <span className="text-[10px] text-white/85">Qibla</span>
+              <span className="text-[10px] text-white/85">{t.islamicHome.qibla}</span>
             </button>
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('ai-chat-islamic')}>
               <MessageCircle className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">AI</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.ai}</span>
             </button>
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('settings-islamic')}>
               <User className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">Profile</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.profile}</span>
             </button>
           </div>
         </div>

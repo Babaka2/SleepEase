@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Sparkles } from 'lucide-react';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import PhoneFrame from './PhoneFrame';
-import { Language } from '../translations';
+import { Language, translations } from '../translations';
 import { auth } from '../../lib/firebaseClient';
 
 type Screen =
@@ -39,9 +39,11 @@ const CHAT_API_URLS = import.meta.env.DEV
 const CHAT_REQUEST_TIMEOUT_MS = 15000;
 
 const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupportScreenProps) => {
+  const t = translations[currentLanguage];
+  const greeting = t.aiChat.greeting.replace('{name}', userName || t.generalHome.guest);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
-    { id: 1, text: `Welcome${userName ? `, ${userName}` : ''}! I'm your SleepEase companion. How are you feeling tonight? I'm here to help you relax and find peace.`, sender: 'bot' }
+    { id: 1, text: greeting, sender: 'bot' }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -152,7 +154,13 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
       console.error("Connection error:", error);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
-        text: "I couldn't get a response just now. Please try again in a few seconds.",
+        text: currentLanguage === 'zh'
+          ? '刚刚没有收到回复，请几秒后再试一次。'
+          : currentLanguage === 'ar'
+            ? 'لم أتمكن من الحصول على رد الآن. حاول مرة أخرى بعد بضع ثوانٍ.'
+            : currentLanguage === 'ms'
+              ? 'Saya tidak dapat menerima balasan sekarang. Cuba lagi dalam beberapa saat.'
+              : "I couldn't get a response just now. Please try again in a few seconds.",
         sender: 'bot'
       }]);
     } finally {
@@ -184,8 +192,8 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-white text-lg font-medium">AI Sleep Coach</h1>
-                <p className="text-white/50 text-xs">Here to help you rest</p>
+                <h1 className="text-white text-lg font-medium">{t.aiChat.title}</h1>
+                <p className="text-white/50 text-xs">{t.generalHome.aiDesc}</p>
               </div>
             </div>
           </div>
@@ -226,7 +234,7 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Share your feelings..."
+                placeholder={t.aiChat.typePlaceholder}
                 className="w-full px-4 py-3 pr-12 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/40 focus:outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all text-sm"
               />
             </div>

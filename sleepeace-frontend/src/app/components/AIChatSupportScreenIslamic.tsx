@@ -13,6 +13,7 @@ import {
   Heart
 } from 'lucide-react';
 import PhoneFrame from './PhoneFrame';
+import { Language, translations } from '../translations';
 import { auth } from '../../lib/firebaseClient';
 
 type Message = {
@@ -41,6 +42,8 @@ type Mode = 'general' | 'islamic' | null;
 
 interface AIChatSupportScreenIslamicProps {
   navigate: (screen: Screen, mode?: Mode) => void;
+  currentLanguage: Language;
+  userName: string;
 }
 
 const CHAT_API_URLS = import.meta.env.DEV
@@ -49,19 +52,20 @@ const CHAT_API_URLS = import.meta.env.DEV
 
 const CHAT_REQUEST_TIMEOUT_MS = 15000;
 
-const quickPrompts = [
-  { text: "Help me find peace", icon: "🤲" },
-  { text: "Feeling anxious", icon: "😰" },
-  { text: "Need du'a guidance", icon: "📿" },
-  { text: "Spiritual support", icon: "🕌" },
-];
+export default function AIChatSupportScreenIslamic({ navigate, currentLanguage, userName }: AIChatSupportScreenIslamicProps) {
+  const t = translations[currentLanguage];
+  const quickPrompts = [
+    { text: t.aiChat.helpRelax, icon: '🤲' },
+    { text: t.aiChat.feelingAnxious, icon: '😰' },
+    { text: t.aiChat.cantSleep, icon: '📿' },
+    { text: t.aiChat.needMotivation, icon: '🕌' },
+  ];
 
-export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportScreenIslamicProps) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: 1, 
-      text: "As-salamu alaykum, Sarah! I'm your Islamic wellness companion. How are you feeling tonight? May Allah ease your worries. 💚", 
+      text: t.aiChat.greetingIslamic.replace('{name}', userName || t.islamicHome.guest), 
       sender: 'bot',
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     },
@@ -183,7 +187,13 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
       const botTimestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: "SubhanAllah, I'm having trouble connecting right now. Please try again. May Allah ease your way.",
+        text: currentLanguage === 'zh'
+          ? '赞主超绝，我暂时无法连接。请稍后再试，愿真主使你顺利。'
+          : currentLanguage === 'ar'
+            ? 'سبحان الله، أواجه مشكلة في الاتصال الآن. حاول مرة أخرى لاحقًا، جعل الله أمرك يسيرًا.'
+            : currentLanguage === 'ms'
+              ? 'SubhanAllah, saya menghadapi masalah sambungan sekarang. Cuba lagi sebentar lagi. Semoga Allah memudahkan urusanmu.'
+              : "SubhanAllah, I'm having trouble connecting right now. Please try again. May Allah ease your way.",
         sender: 'bot',
         timestamp: botTimestamp
       }]);
@@ -253,10 +263,10 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
                 </svg>
               </div>
               <div>
-                <h2 className="text-white text-sm font-medium">Islamic Wellness Guide</h2>
+                <h2 className="text-white text-sm font-medium">{t.aiChat.titleIslamic}</h2>
                 <p className="text-emerald-100/70 text-xs flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                  Here to help
+                  {t.aiChat.online}
                 </p>
               </div>
             </div>
@@ -348,7 +358,7 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
           {/* Quick Prompts - Only show initially */}
           {showQuickPrompts && (
             <div className="mt-6">
-              <p className="text-emerald-100/70 text-xs mb-3 text-center">Quick suggestions:</p>
+              <p className="text-emerald-100/70 text-xs mb-3 text-center">{t.aiChat.quickSuggestions}</p>
               <div className="grid grid-cols-2 gap-2">
                 {quickPrompts.map((prompt, index) => (
                   <button
@@ -371,7 +381,7 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type your message..."
+              placeholder={t.aiChat.typePlaceholder}
               className="flex-1 bg-transparent outline-none text-white placeholder:text-emerald-100/50 text-sm"
               onKeyPress={handleKeyPress}
             />
@@ -394,19 +404,19 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
           <div className="w-full rounded-2xl bg-white/12 backdrop-blur-md border border-white/15 px-4 py-3 flex justify-between items-center">
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('islamic-home')}>
               <Home className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">Home</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.home}</span>
             </button>
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('mood-history-islamic')}>
               <Compass className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">Qibla</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.qibla}</span>
             </button>
             <button className="flex flex-col items-center gap-1">
               <MessageCircle className="w-5 h-5 text-white" />
-              <span className="text-[10px] text-white/85">AI</span>
+              <span className="text-[10px] text-white/85">{t.islamicHome.ai}</span>
             </button>
             <button className="flex flex-col items-center gap-1" onClick={() => navigate('settings-islamic')}>
               <User className="w-5 h-5 text-white/60" />
-              <span className="text-[10px] text-white/55">Profile</span>
+              <span className="text-[10px] text-white/55">{t.islamicHome.profile}</span>
             </button>
           </div>
         </div>
