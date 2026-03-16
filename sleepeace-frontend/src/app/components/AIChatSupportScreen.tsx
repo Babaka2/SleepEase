@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Sparkles } from 'lucide-react';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import PhoneFrame from './PhoneFrame';
 import { Language } from '../translations';
 import { auth } from '../../lib/firebaseClient';
@@ -57,6 +58,36 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
     const errors: string[] = [];
 
     for (const url of CHAT_API_URLS) {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const nativeResp = await CapacitorHttp.post({
+            url,
+            headers,
+            data: payload,
+            connectTimeout: CHAT_REQUEST_TIMEOUT_MS,
+            readTimeout: CHAT_REQUEST_TIMEOUT_MS,
+          });
+
+          if (nativeResp.status === 404 || nativeResp.status === 401 || nativeResp.status === 403) {
+            errors.push(`${url}: ${nativeResp.status}`);
+            continue;
+          }
+
+          if (nativeResp.status < 200 || nativeResp.status >= 300) {
+            errors.push(`${url}: ${nativeResp.status}`);
+            continue;
+          }
+
+          const data = typeof nativeResp.data === 'string'
+            ? JSON.parse(nativeResp.data)
+            : nativeResp.data;
+          return data as { reply?: string; response?: string; message?: string };
+        } catch (error) {
+          errors.push(`${url}: native request failed`);
+          continue;
+        }
+      }
+
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), CHAT_REQUEST_TIMEOUT_MS);
       let response: Response;
@@ -135,11 +166,7 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
       <div className="absolute inset-0 bg-gradient-to-b from-slate-700 via-slate-800 to-blue-900" />
 
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-5 w-24 h-24 bg-indigo-400/10 rounded-full blur-2xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Content */}
       <div className="relative w-full h-full flex flex-col">

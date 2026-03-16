@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { 
   Send, 
   Home, 
@@ -80,6 +81,36 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
     const errors: string[] = [];
 
     for (const url of CHAT_API_URLS) {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const nativeResp = await CapacitorHttp.post({
+            url,
+            headers,
+            data: payload,
+            connectTimeout: CHAT_REQUEST_TIMEOUT_MS,
+            readTimeout: CHAT_REQUEST_TIMEOUT_MS,
+          });
+
+          if (nativeResp.status === 404 || nativeResp.status === 401 || nativeResp.status === 403) {
+            errors.push(`${url}: ${nativeResp.status}`);
+            continue;
+          }
+
+          if (nativeResp.status < 200 || nativeResp.status >= 300) {
+            errors.push(`${url}: ${nativeResp.status}`);
+            continue;
+          }
+
+          const data = typeof nativeResp.data === 'string'
+            ? JSON.parse(nativeResp.data)
+            : nativeResp.data;
+          return data as { reply?: string; response?: string; message?: string };
+        } catch (error) {
+          errors.push(`${url}: native request failed`);
+          continue;
+        }
+      }
+
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), CHAT_REQUEST_TIMEOUT_MS);
       let response: Response;
@@ -190,10 +221,7 @@ export default function AIChatSupportScreenIslamic({ navigate }: AIChatSupportSc
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-900" />
       
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-yellow-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Content */}
       <div className="relative w-full h-full flex flex-col">
