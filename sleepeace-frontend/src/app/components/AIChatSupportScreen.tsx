@@ -54,6 +54,8 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
   }, [messages]);
 
   const requestChat = async (payload: { message: string; mode: string }, headers: Record<string, string>) => {
+    const errors: string[] = [];
+
     for (const url of CHAT_API_URLS) {
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), CHAT_REQUEST_TIMEOUT_MS);
@@ -69,26 +71,29 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
       } catch (error) {
         window.clearTimeout(timeoutId);
         if (error instanceof DOMException && error.name === 'AbortError') {
+          errors.push(`${url}: timeout`);
           continue;
         }
+        errors.push(`${url}: network error`);
         throw error;
       } finally {
         window.clearTimeout(timeoutId);
       }
 
-      if (response.status === 404) {
+      if (response.status === 404 || response.status === 401 || response.status === 403) {
+        errors.push(`${url}: ${response.status}`);
         continue;
       }
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`Server error: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+        errors.push(`${url}: ${response.status}`);
+        continue;
       }
 
       return response.json() as Promise<{ reply?: string; response?: string; message?: string }>;
     }
 
-    throw new Error('Chat request timed out. Please try again.');
+    throw new Error(`No compatible chat endpoint found (${errors.join(', ')})`);
   };
 
   const handleSendMessage = async () => {
