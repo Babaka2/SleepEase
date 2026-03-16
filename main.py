@@ -1,6 +1,7 @@
 import nltk
 nltk.download('punkt_tab')
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import db
 from firebase_admin import auth, firestore
@@ -10,6 +11,22 @@ from datetime import datetime
 from ai_engine import get_mood_advice 
 
 app = FastAPI()
+
+# CORS for web + Capacitor mobile WebView origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "capacitor://localhost",
+        "ionic://localhost",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Data Models ---
 class UserSchema(BaseModel):
