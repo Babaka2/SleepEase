@@ -35,6 +35,8 @@ const CHAT_API_URLS = import.meta.env.DEV
   ? ['/api/chat', '/api/ai/chat']
   : ['https://sleepease-backend.onrender.com/chat', 'https://sleepease-backend.onrender.com/ai/chat'];
 
+const CHAT_REQUEST_TIMEOUT_MS = 15000;
+
 const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupportScreenProps) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -53,24 +55,40 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
 
   const requestChat = async (payload: { message: string; mode: string }, headers: Record<string, string>) => {
     for (const url of CHAT_API_URLS) {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), CHAT_REQUEST_TIMEOUT_MS);
+      let response: Response;
+
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        window.clearTimeout(timeoutId);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          continue;
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
       if (response.status === 404) {
         continue;
       }
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`Server error: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
       }
 
       return response.json() as Promise<{ reply?: string; response?: string; message?: string }>;
     }
 
-    throw new Error('No compatible chat endpoint found');
+    throw new Error('Chat request timed out. Please try again.');
   };
 
   const handleSendMessage = async () => {
@@ -98,7 +116,7 @@ const AIChatSupportScreen = ({ navigate, currentLanguage, userName }: AIChatSupp
       console.error("Connection error:", error);
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
-        text: "I'm having trouble connecting right now. Please try again in a moment.",
+        text: "I couldn't get a response just now. Please try again in a few seconds.",
         sender: 'bot'
       }]);
     } finally {
