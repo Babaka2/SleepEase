@@ -48,12 +48,17 @@ interface IslamicModeHomeProps {
 
 export default function IslamicModeHome({ navigate, userInfo, currentLanguage }: IslamicModeHomeProps) {
   const t = translations[currentLanguage].islamicHome;
+  const metricText = {
+    checkIns: currentLanguage === 'zh' ? '打卡' : currentLanguage === 'ar' ? 'عمليات التحقق' : currentLanguage === 'ms' ? 'Daftar masuk' : 'Check-ins',
+    reflections: currentLanguage === 'zh' ? '反思' : currentLanguage === 'ar' ? 'تأملات' : currentLanguage === 'ms' ? 'Refleksi' : 'Reflections',
+  };
   const [stats, setStats] = useState<HomeStats>({
     streak: 0,
     sleepIndexPct: 0,
     stabilityPct: 0,
     engagementCount: 0,
     islamicCheckIns: 0,
+    reflectionCount: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
@@ -151,10 +156,7 @@ export default function IslamicModeHome({ navigate, userInfo, currentLanguage }:
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-900" />
 
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-yellow-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Scrollable Content */}
       <div className="relative w-full h-full px-6 pt-14 pb-28 overflow-y-auto">
@@ -185,15 +187,15 @@ export default function IslamicModeHome({ navigate, userInfo, currentLanguage }:
           {/* Spiritual Score */}
           <div className="rounded-2xl bg-gradient-to-br from-amber-500/25 to-yellow-500/25 backdrop-blur-xl border border-amber-400/20 p-3">
             <TrendingUp className="w-5 h-5 text-yellow-400 mb-2" />
-            <p className="text-white text-xl font-bold">{statsLoading ? '...' : `${stats.stabilityPct}%`}</p>
-            <p className="text-emerald-100/70 text-xs">{t.prayers}</p>
+            <p className="text-white text-xl font-bold">{statsLoading ? '...' : stats.islamicCheckIns}</p>
+            <p className="text-emerald-100/70 text-xs">{metricText.checkIns}</p>
           </div>
 
           {/* Dhikr Count */}
           <div className="rounded-2xl bg-gradient-to-br from-purple-500/25 to-pink-500/25 backdrop-blur-xl border border-purple-400/20 p-3">
             <Star className="w-5 h-5 text-purple-400 mb-2" />
-            <p className="text-white text-xl font-bold">{statsLoading ? '...' : stats.islamicCheckIns}</p>
-            <p className="text-emerald-100/70 text-xs">{t.duasMastered}</p>
+            <p className="text-white text-xl font-bold">{statsLoading ? '...' : stats.reflectionCount}</p>
+            <p className="text-emerald-100/70 text-xs">{metricText.reflections}</p>
           </div>
         </div>
 

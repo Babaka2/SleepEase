@@ -10,6 +10,7 @@ export interface HomeStats {
   stabilityPct: number;
   engagementCount: number;
   islamicCheckIns: number;
+  reflectionCount: number;
 }
 
 type AppMode = 'general' | 'islamic';
@@ -36,8 +37,23 @@ interface EngagementResponse {
 
 interface MoodHistoryItem {
   mode?: string;
+  emotion?: string;
+  note?: string;
   content?: string;
   date?: string;
+  created_at?: string;
+}
+
+interface SleepHistoryItem {
+  hours?: number;
+  quality?: number;
+  mood?: string;
+  date?: string;
+  created_at?: string;
+}
+
+interface SleepHistoryResponse {
+  data?: SleepHistoryItem[];
 }
 
 const pathSupportCache = new Map<string, boolean>();
@@ -91,6 +107,19 @@ function parseLegacyMode(content?: string): AppMode {
   return raw.includes('mode:islamic') ? 'islamic' : 'general';
 }
 
+function parseLegacyMood(content?: string): { mode: AppMode; note?: string; emotion?: string } {
+  const raw = String(content || '');
+  const emotionMatch = raw.match(/mood:([^;]+)/i);
+  const modeMatch = raw.match(/mode:([^;]+)/i);
+  const noteMatch = raw.match(/note:(.*)$/i);
+
+  return {
+    emotion: emotionMatch?.[1]?.trim(),
+    mode: (modeMatch?.[1]?.trim().toLowerCase() === 'islamic' ? 'islamic' : 'general'),
+    note: noteMatch?.[1]?.trim() || undefined,
+  };
+}
+
 function normalizeListPayload<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
     return payload as T[];
@@ -113,7 +142,12 @@ function normalizeListPayload<T>(payload: unknown): T[] {
 function buildStreakFromDates(entries: MoodHistoryItem[]): number {
   const dates = new Set(
     entries
-      .map((entry) => String(entry.date || '').trim())
+      .map((entry) => {
+        const raw = String(entry.date || entry.created_at || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        const parsed = new Date(raw);
+        return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+      })
       .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
   );
 
@@ -164,13 +198,14 @@ export async function fetchHomeStats(mode: AppMode): Promise<HomeStats> {
     hasPath('/logs/mood'),
   ]);
 
-  const [streakResult, sleepIndexResult, trendResult, engagementResult, moodResult, legacyGratitudeResult] = await Promise.allSettled([
+  const [streakResult, sleepIndexResult, trendResult, engagementResult, moodResult, legacyGratitudeResult, sleepHistoryResult] = await Promise.allSettled([
     modernStreak ? fetchWithAuth<StreakResponse>('/logs/streak', token) : Promise.resolve({}),
     modernSleepIndex ? fetchWithAuth<SleepIndexResponse>('/analytics/sleep_index', token) : Promise.resolve({}),
     modernTrend ? fetchWithAuth<EmotionalTrendResponse>('/analytics/emotional_trend', token) : Promise.resolve({}),
     modernEngagement ? fetchWithAuth<EngagementResponse>('/analytics/engagement', token) : Promise.resolve({}),
     modernMood ? fetchWithAuth<MoodHistoryItem[]>('/logs/mood?limit=100', token) : Promise.resolve([]),
     fetchWithAuth<unknown>('/gratitude/list?user_id=' + encodeURIComponent(uid), token),
+    fetchWithAuth<SleepHistoryResponse>('/sleep/history?user_id=' + encodeURIComponent(uid), token),
   ]);
 
   const streakData = getFulfilledValue<StreakResponse>(streakResult, {});
@@ -179,20 +214,63 @@ export async function fetchHomeStats(mode: AppMode): Promise<HomeStats> {
   const engagementData = getFulfilledValue<EngagementResponse>(engagementResult, {});
   const moodData = normalizeListPayload<MoodHistoryItem>(getFulfilledValue<unknown>(moodResult, []));
   const legacyGratitudeData = normalizeListPayload<MoodHistoryItem>(getFulfilledValue<unknown>(legacyGratitudeResult, []));
+  const sleepHistoryData = normalizeListPayload<SleepHistoryItem>(getFulfilledValue<SleepHistoryResponse>(sleepHistoryResult, {}).data ?? []);
 
-  const fallbackStreak = buildStreakFromDates(legacyGratitudeData);
-  const fallbackEngagement = legacyGratitudeData.length;
-  const fallbackIslamic = legacyGratitudeData.filter((entry) => parseLegacyMode(entry.content) === 'islamic').length;
+  const normalizedLegacyMoodData: MoodHistoryItem[] = legacyGratitudeData.map((entry) => {
+    const parsed = parseLegacyMood(entry.content);
+    return {
+      ...entry,
+      mode: parsed.mode,
+      note: parsed.note,
+      emotion: parsed.emotion,
+      created_at: entry.created_at || entry.date,
+    };
+  });
+
+  const allMoodData = moodData.length > 0 ? moodData : normalizedLegacyMoodData;
+  const scopedMoodData = allMoodData.filter((entry) => {
+    const entryMode = String(entry.mode ?? '').toLowerCase();
+    return mode === 'islamic' ? entryMode === 'islamic' : entryMode !== 'islamic';
+  });
+  const relevantMoodData = scopedMoodData.length > 0 ? scopedMoodData : allMoodData;
+
+  const fallbackStreak = buildStreakFromDates(relevantMoodData);
+  const fallbackEngagement = relevantMoodData.length + sleepHistoryData.length;
+  const fallbackIslamic = relevantMoodData.length;
+  const fallbackReflections = relevantMoodData.filter((entry) => String(entry.note || '').trim().length > 0).length;
+  const fallbackSleepIndex = sleepHistoryData.length > 0
+    ? Math.round(
+        sleepHistoryData.reduce((sum, entry) => sum + Math.max(0, Math.min(10, Number(entry.quality ?? 0))), 0) /
+        sleepHistoryData.length * 10
+      )
+    : 0;
+  const moodScoreMap: Record<string, number> = {
+    peaceful: 90,
+    grateful: 85,
+    calm: 80,
+    happy: 80,
+    seeking: 60,
+    tired: 45,
+    worried: 40,
+    anxious: 35,
+    overwhelmed: 30,
+    sad: 35,
+  };
+  const fallbackStability = relevantMoodData.length > 0
+    ? Math.round(
+        relevantMoodData.reduce((sum, entry) => {
+          const emotion = String(entry.emotion ?? '').toLowerCase();
+          return sum + (moodScoreMap[emotion] ?? 50);
+        }, 0) / relevantMoodData.length
+      )
+    : 0;
 
   const streak = Math.max(0, Number(streakData.streak ?? fallbackStreak));
-  const sleepIndexPct = Math.max(0, Math.min(100, Math.round(Number(sleepIndexData.sleep_improvement_index ?? 0))));
-  const stabilityPct = Math.max(0, Math.min(100, Math.round(Number(trendData.avg_stability ?? 0) * 100)));
+  const sleepIndexPct = Math.max(0, Math.min(100, Math.round(Number(sleepIndexData.sleep_improvement_index ?? fallbackSleepIndex))));
+  const stabilityPct = Math.max(0, Math.min(100, Math.round(Number(trendData.avg_stability ?? 0) * 100 || fallbackStability)));
   const engagementCount = Math.max(0, Number(engagementData.total_30d_logs ?? fallbackEngagement));
-
-  const islamicCheckIns = moodData.filter((entry) => {
-    const entryMode = String(entry.mode ?? '').toLowerCase();
-    return entryMode === 'islamic';
-  }).length || fallbackIslamic;
+  const islamicCheckIns = Math.max(0, fallbackIslamic);
+  const reflectionCount = Math.max(0, fallbackReflections);
 
   if (mode === 'general') {
     return {
@@ -201,6 +279,7 @@ export async function fetchHomeStats(mode: AppMode): Promise<HomeStats> {
       stabilityPct,
       engagementCount,
       islamicCheckIns,
+      reflectionCount,
     };
   }
 
@@ -210,5 +289,6 @@ export async function fetchHomeStats(mode: AppMode): Promise<HomeStats> {
     stabilityPct,
     engagementCount,
     islamicCheckIns,
+    reflectionCount,
   };
 }

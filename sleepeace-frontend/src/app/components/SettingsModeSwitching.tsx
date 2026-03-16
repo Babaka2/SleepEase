@@ -160,7 +160,7 @@ export default function SettingsModeSwitching({ navigate, currentMode, userInfo,
                   <div className={`w-10 h-10 rounded-xl border border-white/20 ${th.id === 'dark' ? 'bg-slate-800' : th.id === 'light' ? 'bg-slate-200' : 'bg-gradient-to-br from-slate-800 to-slate-200'}`} />
                   <span className="text-white font-medium">{th.label}</span>
                 </div>
-                {selectedTheme === th.id && <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">\u2713</div>}
+                {selectedTheme === th.id && <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">✓</div>}
               </button>
             ))}
           </div>
@@ -172,10 +172,10 @@ export default function SettingsModeSwitching({ navigate, currentMode, userInfo,
               <button key={s.id} onClick={() => { setSelectedSound(s.id); localStorage.setItem('sleepease_sound_gen', s.id); }}
                 className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${selectedSound === s.id ? 'bg-blue-500/20 border-blue-400/40' : 'bg-white/10 border-white/10'}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-lg">\ud83d\udd0a</div>
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-lg">🔊</div>
                   <span className="text-white font-medium">{s.label}</span>
                 </div>
-                {selectedSound === s.id && <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">\u2713</div>}
+                {selectedSound === s.id && <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs">✓</div>}
               </button>
             ))}
           </div>
@@ -202,7 +202,7 @@ export default function SettingsModeSwitching({ navigate, currentMode, userInfo,
                   <p className="text-white text-sm font-medium">{m.name}</p>
                   <p className="text-white/50 text-xs">{m.earned ? 'Earned' : 'Locked'}</p>
                 </div>
-                {m.earned && <span className="text-blue-400 text-sm">\u2713</span>}
+                {m.earned && <span className="text-blue-400 text-sm">✓</span>}
               </div>
             ))}
           </div>
@@ -294,10 +294,7 @@ export default function SettingsModeSwitching({ navigate, currentMode, userInfo,
       <div className="absolute inset-0 bg-gradient-to-b from-slate-700 via-slate-800 to-blue-900" />
 
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Scrollable Content */}
       <div className="relative w-full h-full px-6 pt-14 pb-28 overflow-y-auto">

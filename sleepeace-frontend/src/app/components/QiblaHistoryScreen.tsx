@@ -150,6 +150,11 @@ function computeTrendPercent(entries: MoodEntry[]): number {
 
 export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaHistoryScreenProps) {
   const t = translations[currentLanguage];
+  const qiblaMetricsText = {
+    dayStreak: t.explore.dayStreak,
+    checkIns: t.explore.checkIns,
+    reflections: currentLanguage === 'zh' ? '反思' : currentLanguage === 'ar' ? 'تأملات' : currentLanguage === 'ms' ? 'Refleksi' : 'Reflections',
+  };
   const [selectedTab, setSelectedTab] = useState<'overview' | 'insights' | 'history'>('overview');
   const [entries, setEntries] = useState<MoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,8 +175,8 @@ export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaH
   const stats = useMemo(() => {
     const streak = computeStreak(entries);
     const checkIns = entries.length;
-    const badges = Math.min(10, Math.floor(checkIns / 3) + (streak >= 7 ? 1 : 0));
-    return { streak, checkIns, badges };
+    const reflections = entries.filter((entry) => String(entry.note || '').trim().length > 0).length;
+    return { streak, checkIns, reflections };
   }, [entries]);
 
   const distribution = useMemo(() => {
@@ -260,14 +265,6 @@ export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaH
         gradient: 'from-amber-500/20 to-orange-500/20', iconBg: 'from-amber-400/30 to-orange-400/30', tag: 'Achievement',
       });
     }
-
-    // Quran/adhkar tip
-    result.push({
-      icon: <BookOpen className="w-5 h-5" />,
-      title: 'Quran Reading Impact',
-      description: 'Days with Quran reading show 65% more peacefulness — try reading before check-in',
-      gradient: 'from-amber-500/20 to-yellow-500/20', iconBg: 'from-amber-400/30 to-yellow-400/30', tag: 'Discovery',
-    });
 
     if (entries.length === 0) {
       result.push({
@@ -364,6 +361,7 @@ export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaH
                   weeklyHeights={weeklyHeights}
                   trendPercent={trendPercent}
                   scores={scores}
+                  labels={qiblaMetricsText}
                 />
               )}
               {selectedTab === 'insights' && (
@@ -405,14 +403,15 @@ export default function QiblaHistoryScreen({ navigate, currentLanguage }: QiblaH
 /* ---------- Tab Components ---------- */
 
 interface OverviewProps {
-  stats: { streak: number; checkIns: number; badges: number };
+  stats: { streak: number; checkIns: number; reflections: number };
   distribution: { key: MoodKey; pct: number }[];
   weeklyHeights: number[];
   trendPercent: number;
   scores: MyScores | null;
+  labels: { dayStreak: string; checkIns: string; reflections: string };
 }
 
-function OverviewTab({ stats, distribution, weeklyHeights, trendPercent, scores }: OverviewProps) {
+function OverviewTab({ stats, distribution, weeklyHeights, trendPercent, scores, labels }: OverviewProps) {
   const maxH = Math.max(...weeklyHeights, 1);
 
   return (
@@ -422,21 +421,21 @@ function OverviewTab({ stats, distribution, weeklyHeights, trendPercent, scores 
         <StatCard
           icon={<Flame className="w-5 h-5" />}
           value={String(stats.streak)}
-          label="Prayer Streak"
+          label={labels.dayStreak}
           gradient="from-emerald-500/25 to-teal-500/25"
           iconColor="text-emerald-400"
         />
         <StatCard
           icon={<Target className="w-5 h-5" />}
           value={String(stats.checkIns)}
-          label="Check-ins"
+          label={labels.checkIns}
           gradient="from-amber-500/25 to-yellow-500/25"
           iconColor="text-yellow-400"
         />
         <StatCard
           icon={<Award className="w-5 h-5" />}
-          value={String(stats.badges)}
-          label="Badges"
+          value={String(stats.reflections)}
+          label={labels.reflections}
           gradient="from-purple-500/25 to-pink-500/25"
           iconColor="text-purple-400"
         />
@@ -512,7 +511,7 @@ function OverviewTab({ stats, distribution, weeklyHeights, trendPercent, scores 
               <span className="text-2xl">🕌</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-white text-sm font-medium mb-1">Prayer Consistency</h3>
+              <h3 className="text-white text-sm font-medium mb-1">Consistency</h3>
               <p className="text-emerald-100/80 text-xs mb-2">{stats.streak}-day check-in streak! Keep it up 🌟</p>
             </div>
           </div>
