@@ -56,6 +56,73 @@ import { updateUserMode } from '../../services/auth';
 
 export default function SettingsModeSwitchingIslamic({ navigate, currentMode, userInfo, onLogout, currentLanguage }: SettingsModeSwitchingIslamicProps) {
   const t = translations[currentLanguage].settings;
+  const qiblaText = currentLanguage === 'zh'
+    ? {
+        finding: '正在查找朝拜方向...',
+        unsupported: '此设备或浏览器不支持指南针',
+        permissionDenied: '指南针权限被拒绝',
+        permissionNotGranted: '未获得指南针权限',
+        rotate: '请旋转手机，使黄色指针与朝拜方向对齐',
+        enableLive: '点击启用指南针以开始实时方向',
+        fallbackLocation: '当前使用默认方向。请允许定位以获得准确朝拜方向。',
+        fromNorth: '从正北开始',
+        directionToMakkah: '朝向麦加（天房）的方向',
+        aligned: '已对准。你正面向朝拜方向。',
+        away: (degrees: number) => `距离朝拜方向还有 ${degrees}°`,
+        heading: (degrees: number) => `当前朝向：${degrees}°`,
+        enableCompass: '启用指南针',
+        emulatorHint: '模拟器通常没有真实指南针传感器。你仍然可以使用上方角度值。',
+      }
+    : currentLanguage === 'ar'
+      ? {
+          finding: 'جارٍ تحديد اتجاه القبلة...',
+          unsupported: 'البوصلة غير مدعومة على هذا الجهاز أو المتصفح',
+          permissionDenied: 'تم رفض إذن البوصلة',
+          permissionNotGranted: 'لم يتم منح إذن البوصلة',
+          rotate: 'قم بتدوير الهاتف حتى يتطابق المؤشر الأصفر مع اتجاه القبلة',
+          enableLive: 'اضغط لتفعيل البوصلة وبدء الاتجاه المباشر',
+          fallbackLocation: 'يتم استخدام اتجاه افتراضي الآن. اسمح بالموقع للحصول على قبلة دقيقة.',
+          fromNorth: 'من الشمال',
+          directionToMakkah: 'الاتجاه نحو مكة (الكعبة)',
+          aligned: 'تمت المحاذاة. أنت الآن تواجه القبلة.',
+          away: (degrees: number) => `يبعد ${degrees}° عن القبلة`,
+          heading: (degrees: number) => `اتجاهك الحالي: ${degrees}°`,
+          enableCompass: 'تفعيل البوصلة',
+          emulatorHint: 'المحاكي غالبًا لا يحتوي على مستشعر بوصلة حقيقي. لا يزال بإمكانك استخدام قيمة الدرجة أعلاه.',
+        }
+      : currentLanguage === 'ms'
+        ? {
+            finding: 'Sedang mencari arah kiblat...',
+            unsupported: 'Kompas tidak disokong pada peranti/pelayar ini',
+            permissionDenied: 'Kebenaran kompas ditolak',
+            permissionNotGranted: 'Kebenaran kompas tidak diberikan',
+            rotate: 'Pusing telefon anda sehingga penunjuk kuning sejajar dengan arah kiblat',
+            enableLive: 'Tekan untuk mengaktifkan kompas bagi arah langsung',
+            fallbackLocation: 'Arah lalai sedang digunakan. Benarkan lokasi untuk arah kiblat yang tepat.',
+            fromNorth: 'dari Utara',
+            directionToMakkah: 'Arah ke Makkah (Kaabah)',
+            aligned: 'Sudah sejajar. Anda sedang menghadap kiblat.',
+            away: (degrees: number) => `${degrees}° lagi untuk sejajar dengan kiblat`,
+            heading: (degrees: number) => `Arah anda: ${degrees}°`,
+            enableCompass: 'Aktifkan Kompas',
+            emulatorHint: 'Emulator biasanya tidak mempunyai sensor kompas sebenar. Anda masih boleh menggunakan nilai darjah di atas.',
+          }
+        : {
+            finding: 'Finding your Qibla direction...',
+            unsupported: 'Compass not supported on this device/browser',
+            permissionDenied: 'Compass permission denied',
+            permissionNotGranted: 'Compass permission was not granted',
+            rotate: 'Rotate your phone to align with the yellow pointer',
+            enableLive: 'Tap enable compass to start live direction',
+            fallbackLocation: 'Using default direction. Please allow location for accurate Qibla.',
+            fromNorth: 'from North',
+            directionToMakkah: 'Direction to Makkah (Kaaba)',
+            aligned: 'Aligned. You are facing Qibla.',
+            away: (degrees: number) => `${degrees}° away from Qibla`,
+            heading: (degrees: number) => `Your heading: ${degrees}°`,
+            enableCompass: 'Enable Compass',
+            emulatorHint: 'Live compass is unavailable. You can still use the degree value above.',
+          };
 
   type CompassEvent = DeviceOrientationEvent & {
     webkitCompassHeading?: number;
@@ -80,7 +147,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
   const [prayerTimes, setPrayerTimes] = useState<Record<string, string> | null>(null);
   const [qiblaBearing, setQiblaBearing] = useState<number | null>(null);
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
-  const [qiblaStatus, setQiblaStatus] = useState('Finding your Qibla direction...');
+  const [qiblaStatus, setQiblaStatus] = useState(qiblaText.finding);
   const [compassReady, setCompassReady] = useState(false);
   const [needsCompassPermission, setNeedsCompassPermission] = useState(false);
   const [hijriDate, setHijriDate] = useState('');
@@ -126,7 +193,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
 
   const startCompassTracking = async () => {
     if (typeof window === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
-      setQiblaStatus('Compass not supported on this device/browser');
+      setQiblaStatus(qiblaText.unsupported);
       return;
     }
 
@@ -135,11 +202,11 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
       try {
         const permission = await OrientationCtor.requestPermission();
         if (permission !== 'granted') {
-          setQiblaStatus('Compass permission denied');
+          setQiblaStatus(qiblaText.permissionDenied);
           return;
         }
       } catch {
-        setQiblaStatus('Compass permission was not granted');
+        setQiblaStatus(qiblaText.permissionNotGranted);
         return;
       }
     }
@@ -157,7 +224,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
       if (heading === null) return;
       setDeviceHeading(Math.round(heading));
       setCompassReady(true);
-      setQiblaStatus('Rotate your phone to align with the yellow pointer');
+      setQiblaStatus(qiblaText.rotate);
     };
 
     window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
@@ -186,19 +253,19 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
         setQiblaBearing(Math.round((toD(Math.atan2(y, x)) + 360) % 360));
       } catch {
         setQiblaBearing(45);
-        setQiblaStatus('Using default direction. Please allow location for accurate Qibla.');
+        setQiblaStatus(qiblaText.fallbackLocation);
       }
 
       if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined') {
         const OrientationCtor = DeviceOrientationEvent as unknown as DeviceOrientationWithPermission;
         if (typeof OrientationCtor.requestPermission === 'function') {
           setNeedsCompassPermission(true);
-          setQiblaStatus('Tap enable compass to start live direction');
+          setQiblaStatus(qiblaText.enableLive);
         } else {
           cleanupCompass = await startCompassTracking();
         }
       } else {
-        setQiblaStatus('Compass not supported on this device/browser');
+        setQiblaStatus(qiblaText.unsupported);
       }
     })();
 
@@ -209,7 +276,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
 
   // Dynamic labels
   const nextPrayerLabel = prayerTimes ? `Next: Fajr ${prayerTimes.Fajr}` : t.prayerTimesDesc;
-  const qiblaLabel = qiblaBearing !== null ? `${qiblaBearing}° from North` : t.qiblaDesc;
+  const qiblaLabel = qiblaBearing !== null ? `${qiblaBearing}° ${qiblaText.fromNorth}` : t.qiblaDesc;
   const hijriLabel = hijriDate || t.hijriDesc;
     const qiblaPointer = qiblaBearing === null
       ? 0
@@ -316,13 +383,13 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-emerald-300">{qiblaBearing ?? '...'}°</p>
-              <p className="text-white/60 text-sm mt-1">from North</p>
-              <p className="text-emerald-100/50 text-xs mt-2">Direction to Makkah (Kaaba)</p>
+              <p className="text-white/60 text-sm mt-1">{qiblaText.fromNorth}</p>
+              <p className="text-emerald-100/50 text-xs mt-2">{qiblaText.directionToMakkah}</p>
               <p className={`text-xs mt-2 ${isAligned ? 'text-emerald-300' : 'text-emerald-100/70'}`}>
-                {isAligned ? 'Aligned. You are facing Qibla.' : qiblaDelta !== null ? `${qiblaDelta}° away from Qibla` : qiblaStatus}
+                {isAligned ? qiblaText.aligned : qiblaDelta !== null ? qiblaText.away(qiblaDelta) : qiblaStatus}
               </p>
               {deviceHeading !== null && (
-                <p className="text-white/40 text-xs mt-1">Your heading: {deviceHeading}°</p>
+                <p className="text-white/40 text-xs mt-1">{qiblaText.heading(deviceHeading)}</p>
               )}
             </div>
             {needsCompassPermission && (
@@ -330,11 +397,11 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
                 onClick={() => { void startCompassTracking(); }}
                 className="px-4 py-2 rounded-xl bg-emerald-500/25 border border-emerald-400/30 text-emerald-100 text-sm"
               >
-                Enable Compass
+                {qiblaText.enableCompass}
               </button>
             )}
             {!compassReady && !needsCompassPermission && (
-              <p className="text-white/45 text-xs text-center px-4">Live compass is unavailable. You can still use the degree value above.</p>
+              <p className="text-white/45 text-xs text-center px-4">{qiblaText.emulatorHint}</p>
             )}
           </div>
         );
@@ -548,10 +615,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-slate-950 to-emerald-900" />
 
       {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-40 left-10 w-40 h-40 bg-yellow-400/10 rounded-full blur-3xl" />
-      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" />
 
       {/* Scrollable Content */}
       <div className="relative w-full h-full px-6 pt-14 pb-28 overflow-y-auto">
