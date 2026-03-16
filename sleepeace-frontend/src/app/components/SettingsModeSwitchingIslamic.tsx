@@ -57,6 +57,14 @@ import { updateUserMode } from '../../services/auth';
 export default function SettingsModeSwitchingIslamic({ navigate, currentMode, userInfo, onLogout, currentLanguage }: SettingsModeSwitchingIslamicProps) {
   const t = translations[currentLanguage].settings;
 
+  type CompassEvent = DeviceOrientationEvent & {
+    webkitCompassHeading?: number;
+  };
+
+  type DeviceOrientationWithPermission = {
+    requestPermission?: () => Promise<'granted' | 'denied'>;
+  };
+
   const handleModeSwitch = async () => {
     const newMode = currentMode === 'general' ? 'islamic' : 'general';
     try {
@@ -71,6 +79,10 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [prayerTimes, setPrayerTimes] = useState<Record<string, string> | null>(null);
   const [qiblaBearing, setQiblaBearing] = useState<number | null>(null);
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const [qiblaStatus, setQiblaStatus] = useState('Finding your Qibla direction...');
+  const [compassReady, setCompassReady] = useState(false);
+  const [needsCompassPermission, setNeedsCompassPermission] = useState(false);
   const [hijriDate, setHijriDate] = useState('');
   const [quranProgress, setQuranProgress] = useState(() => {
     try { const s = localStorage.getItem('sleepease_quran'); return s ? JSON.parse(s) : { surah: 'Al-Baqarah', ayah: 45 }; }
@@ -112,9 +124,55 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
     })();
   }, [activePanel, prayerTimes]);
 
+  const startCompassTracking = async () => {
+    if (typeof window === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
+      setQiblaStatus('Compass not supported on this device/browser');
+      return;
+    }
+
+    const OrientationCtor = DeviceOrientationEvent as unknown as DeviceOrientationWithPermission;
+    if (typeof OrientationCtor.requestPermission === 'function') {
+      try {
+        const permission = await OrientationCtor.requestPermission();
+        if (permission !== 'granted') {
+          setQiblaStatus('Compass permission denied');
+          return;
+        }
+      } catch {
+        setQiblaStatus('Compass permission was not granted');
+        return;
+      }
+    }
+
+    setNeedsCompassPermission(false);
+
+    const handleOrientation = (event: CompassEvent) => {
+      let heading: number | null = null;
+      if (typeof event.webkitCompassHeading === 'number') {
+        heading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === 'number') {
+        heading = (360 - event.alpha + 360) % 360;
+      }
+
+      if (heading === null) return;
+      setDeviceHeading(Math.round(heading));
+      setCompassReady(true);
+      setQiblaStatus('Rotate your phone to align with the yellow pointer');
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation as EventListener, true);
+    };
+  };
+
   // Calculate Qibla when panel opens
   useEffect(() => {
-    if (activePanel !== 'qibla' || qiblaBearing !== null) return;
+    if (activePanel !== 'qibla') return;
+
+    let cleanupCompass: (() => void) | undefined;
+
     (async () => {
       try {
         const pos = await new Promise<GeolocationPosition>((res, rej) =>
@@ -126,14 +184,41 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
         const x = Math.cos(toR(pos.coords.latitude)) * Math.sin(toR(21.4225))
                 - Math.sin(toR(pos.coords.latitude)) * Math.cos(toR(21.4225)) * Math.cos(dL);
         setQiblaBearing(Math.round((toD(Math.atan2(y, x)) + 360) % 360));
-      } catch { setQiblaBearing(45); }
+      } catch {
+        setQiblaBearing(45);
+        setQiblaStatus('Using default direction. Please allow location for accurate Qibla.');
+      }
+
+      if (typeof window !== 'undefined' && typeof DeviceOrientationEvent !== 'undefined') {
+        const OrientationCtor = DeviceOrientationEvent as unknown as DeviceOrientationWithPermission;
+        if (typeof OrientationCtor.requestPermission === 'function') {
+          setNeedsCompassPermission(true);
+          setQiblaStatus('Tap enable compass to start live direction');
+        } else {
+          cleanupCompass = await startCompassTracking();
+        }
+      } else {
+        setQiblaStatus('Compass not supported on this device/browser');
+      }
     })();
-  }, [activePanel, qiblaBearing]);
+
+    return () => {
+      if (cleanupCompass) cleanupCompass();
+    };
+  }, [activePanel]);
 
   // Dynamic labels
   const nextPrayerLabel = prayerTimes ? `Next: Fajr ${prayerTimes.Fajr}` : t.prayerTimesDesc;
   const qiblaLabel = qiblaBearing !== null ? `${qiblaBearing}° from North` : t.qiblaDesc;
   const hijriLabel = hijriDate || t.hijriDesc;
+    const qiblaPointer = qiblaBearing === null
+      ? 0
+      : Math.round((qiblaBearing - (deviceHeading ?? 0) + 360) % 360);
+    const qiblaDelta = qiblaBearing === null || deviceHeading === null
+      ? null
+      : Math.min(qiblaPointer, 360 - qiblaPointer);
+    const isAligned = qiblaDelta !== null && qiblaDelta <= 10;
+
   const quranLabel = `${quranProgress.surah}, Ayah ${quranProgress.ayah}`;
   const notifLabel = notifEnabled ? t.prayerReminders : 'Off';
   const themeLabel = selectedTheme === 'islamic-dark' ? 'Islamic Dark' : selectedTheme === 'dark' ? 'Dark' : 'Light';
@@ -222,7 +307,7 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 text-white/40 text-xs">S</div>
               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 text-white/40 text-xs">E</div>
               <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 text-white/40 text-xs">W</div>
-              <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `rotate(${qiblaBearing || 45}deg)` }}>
+              <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `rotate(${qiblaPointer}deg)` }}>
                 <div className="w-1 h-20 bg-gradient-to-t from-transparent via-emerald-400 to-yellow-400 rounded-full -translate-y-2" />
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -233,7 +318,24 @@ export default function SettingsModeSwitchingIslamic({ navigate, currentMode, us
               <p className="text-3xl font-bold text-emerald-300">{qiblaBearing ?? '...'}°</p>
               <p className="text-white/60 text-sm mt-1">from North</p>
               <p className="text-emerald-100/50 text-xs mt-2">Direction to Makkah (Kaaba)</p>
+              <p className={`text-xs mt-2 ${isAligned ? 'text-emerald-300' : 'text-emerald-100/70'}`}>
+                {isAligned ? 'Aligned. You are facing Qibla.' : qiblaDelta !== null ? `${qiblaDelta}° away from Qibla` : qiblaStatus}
+              </p>
+              {deviceHeading !== null && (
+                <p className="text-white/40 text-xs mt-1">Your heading: {deviceHeading}°</p>
+              )}
             </div>
+            {needsCompassPermission && (
+              <button
+                onClick={() => { void startCompassTracking(); }}
+                className="px-4 py-2 rounded-xl bg-emerald-500/25 border border-emerald-400/30 text-emerald-100 text-sm"
+              >
+                Enable Compass
+              </button>
+            )}
+            {!compassReady && !needsCompassPermission && (
+              <p className="text-white/45 text-xs text-center px-4">Live compass is unavailable. You can still use the degree value above.</p>
+            )}
           </div>
         );
       case 'hijri':
