@@ -9,8 +9,17 @@ Ensures AI-generated Islamic content is:
 
 import re
 import os
+import json
 from datetime import datetime
-from groq import Groq
+from openai import OpenAI
+
+_openai_compliance_client = None
+
+def _get_openai_client() -> OpenAI:
+    global _openai_compliance_client
+    if _openai_compliance_client is None:
+        _openai_compliance_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _openai_compliance_client
 
 # ── Keyword-based fast filters ─────────────────────────────────────────────
 
@@ -122,13 +131,13 @@ AI Response to evaluate:
 
 def deep_compliance_check(ai_response: str) -> dict:
     """
-    Uses a separate LLM call to audit the AI response for Islamic accuracy.
+    Uses a separate OpenAI call to audit the AI response for Islamic accuracy.
     Returns compliance score and recommendation.
     """
     try:
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        client = _get_openai_client()
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "user", "content": _COMPLIANCE_PROMPT + ai_response}
             ],
@@ -136,7 +145,6 @@ def deep_compliance_check(ai_response: str) -> dict:
             temperature=0.1,
             response_format={"type": "json_object"},
         )
-        import json
         result = json.loads(response.choices[0].message.content)
         return {
             "score": float(result.get("score", 0.7)),
